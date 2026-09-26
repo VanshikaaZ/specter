@@ -11,6 +11,9 @@ export interface MonitorContext {
   ref?: string;
 }
 
+// How long the start route waits for /run to accept the trigger before moving on
+const TRIGGER_WAIT_MS = 3000;
+
 const isProd = () => process.env.NODE_ENV === 'production';
 
 /**
@@ -80,20 +83,31 @@ export async function createAndRunScan(
   // terminates. We don't wait for the full scan, just for /run to
   // accept the trigger (it runs the real work independently afterward).
   try {
-    await fetch(`${origin}/api/scan/${scan.id}/run`, {
+    const res = await fetch(`${origin}/api/scan/${scan.id}/run`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-internal-secret': internalSecret,
       },
       body: JSON.stringify({ monitor: monitor ?? null }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(TRIGGER_WAIT_MS),
     });
+    // fetch does not throw on an HTTP error, so a rejected trigger (wrong
+    // INTERNAL_SECRET, 500 from /run) has to be checked for explicitly.
+    if (!res.ok) console.error(`Run route rejected scan ${scan.id}: HTTP ${res.status}`);
   } catch (err) {
-    console.error('Failed to trigger run route:', err);
-    // Don't fail the whole request — the scan row exists, the frontend
-    // can still poll it. But this log line is how we'll catch this
-    // happening again in Vercel logs.
+    const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+    if (timedOut) {
+      // Expected: /run does the whole scan inside this request, which takes far
+      // longer than we wait. Not an error; it keeps running and the client polls.
+      console.debug(`Run route for scan ${scan.id} still working after ${TRIGGER_WAIT_MS} ms (expected)`);
+    } else {
+      // Real failure to reach /run (connection refused, DNS, wrong origin).
+      // The scan row exists and will stay "scanning"; this line is how we
+      // catch that in Vercel logs.
+      console.error('Failed to trigger run route:', err);
+    }
+    // Don't fail the whole request either way: the frontend polls the row.
   }
 
   return { scanId: scan.id };
