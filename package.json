@@ -10,6 +10,9 @@
     "benchmark": "tsx scripts/benchmark/run.mts",
     "eval-verdicts": "tsx scripts/eval-verdicts.mjs",
     "verify-diff": "tsx scripts/verify-diff.mts",
+    "verify-sandbox": "tsx scripts/verify-sandbox.mts",
+    "sandbox-runner": "node sandbox-runner/server.mjs",
+    "sandbox-test": "tsx scripts/sandbox-test.mts",
     "verify-review": "tsx scripts/verify-review.mts"
   },
   "dependencies": {

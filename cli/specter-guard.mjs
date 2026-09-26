@@ -22,6 +22,7 @@ const HELP = `specter-guard — check the lockfile before \`npm install\`
 Usage
   specter-guard npm install [packages...] [npm flags] [options]
   specter-guard npm ci [options]
+  (the word "npm" is optional: \`specter-guard install lodash\` works too)
 
 Options
   --warn-only          Report problems but never stop the install
@@ -68,9 +69,16 @@ function parseAllow(spec) {
   return spec;
 }
 
+/** Thrown instead of exiting on the spot: see the note in main() about process.exit() on Windows. */
+class CliError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+}
+
 function fail(message, code = EXIT.ERROR) {
-  console.error(`specter-guard: ${message}`);
-  process.exit(code);
+  throw new CliError(message, code);
 }
 
 // ── npm ──────────────────────────────────────────────────────────────────
@@ -164,7 +172,8 @@ async function checkLockfile(apiUrl, lockfile, log) {
       await sleep(ROUND_WAIT_MS);
       continue;
     }
-    throw new Error(`API returned ${res.status}: ${body?.message ?? 'no details'}`);
+    const hint = res.status === 404 ? ` (is the Specter API deployed at ${apiUrl}? Set SPECTER_API_URL or pass --api-url)` : '';
+    throw new Error(`API returned ${res.status}: ${body?.message ?? 'no details'}${hint}`);
   }
   return last; // still incomplete after every round: reported as such
 }
@@ -209,6 +218,8 @@ async function main() {
     console.log(HELP);
     process.exit(rest.length === 0 && !opts.help ? EXIT.ERROR : EXIT.OK);
   }
+  // `specter-guard install foo` is shorthand for `specter-guard npm install foo`
+  if (['install', 'i', 'add', 'ci'].includes(rest[0])) rest.unshift('npm');
   const [tool, sub, ...npmArgs] = rest;
   if (tool !== 'npm') fail(`only \`npm\` is supported (got "${tool}"). Try: specter-guard npm install <pkg>`);
   if (!['install', 'i', 'add', 'ci'].includes(sub)) fail(`only \`npm install\` and \`npm ci\` are guarded (got "npm ${sub ?? ''}").`);
@@ -234,7 +245,8 @@ async function main() {
     // Fail closed by default: a guard that lets everything through when it can't check is no guard.
     if (opts.warnOnly) {
       console.error(`specter-guard: ${e.message}. Continuing because --warn-only is set.`);
-      process.exit((await runNpm([sub, ...npmArgs], { stdout: opts.json ? 2 : undefined })).code);
+      process.exitCode = (await runNpm([sub, ...npmArgs], { stdout: opts.json ? 2 : undefined })).code;
+      return;
     }
     fail(`${e.message}. Nothing was installed (use --warn-only to install anyway).`);
   }
@@ -253,9 +265,18 @@ async function main() {
     else log(yellow(`! ${n} package(s) checked; ${report.counts.block + report.counts.warn} flagged. Continuing.`));
   }
 
-  if (stopped) process.exit(EXIT.BLOCKED);
+  // Set the exit code and let the event loop drain instead of calling process.exit():
+  // on Windows, exiting while fetch still has sockets open trips a libuv assertion
+  // and the real code (1 = blocked) is lost to a crash code.
+  if (stopped) {
+    process.exitCode = EXIT.BLOCKED;
+    return;
+  }
   const res = await runNpm([sub, ...npmArgs], { stdout: opts.json ? 2 : undefined });
-  process.exit(res.code);
+  process.exitCode = res.code;
 }
 
-main().catch((e) => fail(e?.message ?? String(e)));
+main().catch((e) => {
+  console.error(`specter-guard: ${e?.message ?? String(e)}`);
+  process.exitCode = e instanceof CliError ? e.code : EXIT.ERROR;
+});

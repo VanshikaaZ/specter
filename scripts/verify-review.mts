@@ -84,6 +84,9 @@ const UNLIKELY = JSON.stringify({ malicious: 'unlikely', reasons: ['ordinary cod
   check('an allow is left alone', !shouldLower('allow', sig, [], ok('unlikely')));
   check('a MAL advisory forbids lowering', !shouldLower('warn', [...sig, { type: 'osv_malicious' }], [], ok('unlikely')));
   check('a cooldown hold (too_new) forbids lowering', !shouldLower('warn', [...sig, { type: 'too_new' }], [], ok('unlikely')));
+  check('a sandbox finding forbids lowering', !shouldLower('warn', [...sig, { type: 'sandbox_network', severity: 'high' }], [], ok('unlikely')));
+  check('a sandbox process finding forbids lowering', !shouldLower('warn', [...sig, { type: 'sandbox_process', severity: 'medium' }], [], ok('unlikely')));
+  check('a sandbox "clean" or "skipped" note does not', shouldLower('warn', [...sig, { type: 'sandbox_clean', severity: 'info' }, { type: 'sandbox_skipped', severity: 'info' }], [], ok('unlikely')));
   check('a failed source forbids lowering', !shouldLower('warn', sig, ['osv'], ok('unlikely')));
   check('suspected injection forbids lowering', !shouldLower('warn', sig, [], ok('unlikely', true)));
   check('a failed review never lowers', !shouldLower('warn', sig, [], { status: 'failed', error: 'x', injectionSuspected: false }));

@@ -1,0 +1,9 @@
+{
+  "name": "specter-guard-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo project: its lockfile names a known-malicious version. Do not install it without specter-guard.",
+  "dependencies": {
+    "event-stream": "3.3.6"
+  }
+}

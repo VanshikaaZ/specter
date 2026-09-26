@@ -1,0 +1,9 @@
+{
+  "name": "specter-fixture-benign",
+  "version": "1.0.0",
+  "description": "TEST FIXTURE. A normal package with a normal build step.",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "echo building && node build.js"
+  }
+}

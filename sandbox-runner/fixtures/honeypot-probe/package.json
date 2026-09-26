@@ -1,0 +1,1 @@
+{ "name": "specter-fixture-honeypot-read", "version": "1.0.0", "main": "index.js", "description": "TEST FIXTURE: reads the fake SSH key the sandbox plants.", "scripts": { "postinstall": "node index.js" } }

@@ -1,0 +1,1 @@
+{ "name": "specter-fixture-net", "version": "1.0.0", "main": "index.js", "description": "TEST FIXTURE: tries to reach an unknown host and a documentation-only IP." }

@@ -1,0 +1,2 @@
+# The shell entry point runs on Linux; CRLF would break it.
+*.sh text eol=lf

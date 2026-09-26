@@ -181,13 +181,14 @@ export function parseReview(text: string, hunks: DiffHunk[]): Pick<Extract<LlmRe
  * The only way a review changes a verdict: an `unlikely` answer lowers `warn` to
  * `allow`, and only when no hard signal contradicts it. Hard signals today are a
  * malicious-package advisory (osv_malicious), a cooldown hold (too_new, #42: a
- * policy on release age, which a "looks benign" opinion says nothing about) and
- * any source that could not be checked; a sandbox honeypot hit (#45) joins them
- * when that tier exists.
+ * policy on release age, which a "looks benign" opinion says nothing about),
+ * any source that could not be checked, and any finding from the sandbox (#45).
+ * The sandbox saw what the package actually did; a model reading its source text
+ * cannot overrule that. Its info-level notes (clean, skipped) don't count.
  */
 export function shouldLower(
   verdict: 'allow' | 'warn' | 'block',
-  signals: { type: string }[],
+  signals: { type: string; severity?: string }[],
   sourceFailures: string[],
   review: LlmReview,
 ): boolean {
@@ -197,7 +198,8 @@ export function shouldLower(
     review.malicious === 'unlikely' &&
     !review.injectionSuspected &&
     sourceFailures.length === 0 &&
-    !signals.some((s) => s.type === 'osv_malicious' || s.type === 'too_new')
+    !signals.some((s) => s.type === 'osv_malicious' || s.type === 'too_new'
+      || (s.type.startsWith('sandbox_') && s.severity !== 'info'))
   );
 }
 

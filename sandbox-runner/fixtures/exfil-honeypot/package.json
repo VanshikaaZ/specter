@@ -1,0 +1,9 @@
+{
+  "name": "specter-fixture-exfil",
+  "version": "1.0.0",
+  "description": "TEST FIXTURE. Behaves like a credential stealer: reads fake credentials and tries to send them out. Only ever run inside the Specter sandbox.",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node steal.js"
+  }
+}
